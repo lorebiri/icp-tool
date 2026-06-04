@@ -4,13 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ICP Tool — CNR-ICCOM Pisa</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1a3870">
-<script>
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
-}
-</script>
+<link rel="manifest" href="manifest.json"><script>if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(console.warn));</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
@@ -446,6 +440,17 @@ function elemOptions(selected=''){
 }
 
 // ── Flask volumes ─────────────────────────────────────────────────────────────
+// For solution samples: cTeo in ppm, find if dilution needed
+// Returns {needsDil, vAliq, vFinale, cFinal} or null
+function recommendPrepSolution(cTeo, icpMax){
+  if(!cTeo||cTeo<=0) return null;
+  if(cTeo<=icpMax) return {needsDil:false, cFinal:cTeo};
+  // Dilution needed: take vAliq from original, bring to vFinale
+  const vAliq=1;
+  const vFinale=FLASKS.find(f=>(cTeo*vAliq/f)<=icpMax)||1000;
+  return {needsDil:true, vAliq, vFinale, cFinal:cTeo*vAliq/vFinale};
+}
+
 const FLASKS = [10,25,50,100,250,500,1000];
 
 // ── Prep calculator ───────────────────────────────────────────────────────────
@@ -737,46 +742,80 @@ function renderSampleBlock(s,i,container){
   const letter=LETTERS[i]||(i+1).toString();
   const icpMin=currentSession.data.icpMin||1;
   const icpMax=currentSession.data.icpMax||5;
+  const isSol=(s.type==='solution');
   const div=document.createElement('div'); div.className='sbl'; div.id=`sb-${i}`;
 
   let elemHtml='';
   s.elements.forEach((el,ei)=>{
-    const rec=(el.pct!=null&&s.weight>0)?recommendPrep(el.pct,s.weight,icpMin,icpMax):null;
     let sugg='';
-    if(rec){
-      if(!rec.needsDil){
-        sugg=`<div class="sugg-ok">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          <span>Matraccio: <b>${rec.vFinale} mL</b></span>
-          <span style="color:#166534;">C stimata: <b>${rec.cEst.toFixed(3)} ppm</b></span>
-        </div>`;
-      } else {
-        sugg=`<div class="sugg-dil">
-          <div style="font-weight:600;margin-bottom:4px;">⚠ Diluizione necessaria</div>
-          <div>1. Portare a volume in matraccio da <b>1000 mL</b> → C madre ≈ ${rec.cEst.toFixed(2)} ppm</div>
-          <div>2. Prelevare <b>${rec.vAliqDil} mL</b> → portare a <b>${rec.vDilFlask} mL</b> → C finale ≈ <b>${rec.cFinal.toFixed(3)} ppm</b></div>
-          <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
-            <span style="font-size:12px;">Correggi aliquota:</span>
-            <input type="number" value="${el.vAliqDil??rec.vAliqDil}" min="0.1" step="0.1" style="width:70px;padding:4px 8px;font-size:12px;"
-              onchange="updateElem(${i},${ei},'vAliqDil',parseFloat(this.value)||1);renderSamples();">
-            <span style="font-size:12px;">mL in matraccio da</span>
-            <select style="padding:4px 8px;font-size:12px;" onchange="updateElem(${i},${ei},'vDilFlask',parseInt(this.value));renderSamples();">
-              ${FLASKS.map(f=>`<option value="${f}"${(el.vDilFlask??rec.vDilFlask)===f?' selected':''}>${f} mL</option>`).join('')}
-            </select>
-          </div>
-        </div>`;
+    if(isSol){
+      // Solution: pct field = C teorica (ppm)
+      const rec=(el.pct!=null)?recommendPrepSolution(el.pct,icpMax):null;
+      if(rec){
+        if(!rec.needsDil){
+          sugg=`<div class="sugg-ok">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Misura diretta</span>
+            <span style="color:#166534;">C stimata: <b>${rec.cFinal.toFixed(3)} ppm</b> (nel range)</span>
+          </div>`;
+        } else {
+          sugg=`<div class="sugg-dil">
+            <div style="font-weight:600;margin-bottom:4px;">⚠ Diluizione necessaria</div>
+            <div>Prelevare <b>${rec.vAliq} mL</b> dalla soluzione → portare a <b>${rec.vFinale} mL</b> → C ≈ <b>${rec.cFinal.toFixed(3)} ppm</b></div>
+            <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+              <span style="font-size:12px;">Aliquota:</span>
+              <input type="number" value="${el.vAliqDil??rec.vAliq}" min="0.1" step="0.1" style="width:70px;padding:4px 8px;font-size:12px;"
+                onchange="updateElem(${i},${ei},'vAliqDil',parseFloat(this.value)||1);renderSamples();">
+              <span style="font-size:12px;">mL → matraccio da</span>
+              <select style="padding:4px 8px;font-size:12px;" onchange="updateElem(${i},${ei},'vDilFlask',parseInt(this.value));renderSamples();">
+                ${FLASKS.map(f=>`<option value="${f}"${(el.vDilFlask??rec.vFinale)===f?' selected':''}>${f} mL</option>`).join('')}
+              </select>
+            </div>
+          </div>`;
+        }
       }
-    } else if(el.pct!=null && s.weight===0){
-      sugg=`<div style="color:var(--muted);font-size:12px;margin-top:4px;">Inserisci il peso del campione per il calcolo.</div>`;
+    } else {
+      // Solid: pct field = % teorica
+      const rec=(el.pct!=null&&s.weight>0)?recommendPrep(el.pct,s.weight,icpMin,icpMax):null;
+      if(rec){
+        if(!rec.needsDil){
+          sugg=`<div class="sugg-ok">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Matraccio: <b>${rec.vFinale} mL</b></span>
+            <span style="color:#166534;">C stimata: <b>${rec.cEst.toFixed(3)} ppm</b></span>
+          </div>`;
+        } else {
+          sugg=`<div class="sugg-dil">
+            <div style="font-weight:600;margin-bottom:4px;">⚠ Diluizione necessaria</div>
+            <div>1. Portare a volume in matraccio da <b>1000 mL</b> → C madre ≈ ${rec.cEst.toFixed(2)} ppm</div>
+            <div>2. Prelevare <b>${rec.vAliqDil} mL</b> → portare a <b>${rec.vDilFlask} mL</b> → C ≈ <b>${rec.cFinal.toFixed(3)} ppm</b></div>
+            <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+              <span style="font-size:12px;">Correggi aliquota:</span>
+              <input type="number" value="${el.vAliqDil??rec.vAliqDil}" min="0.1" step="0.1" style="width:70px;padding:4px 8px;font-size:12px;"
+                onchange="updateElem(${i},${ei},'vAliqDil',parseFloat(this.value)||1);renderSamples();">
+              <span style="font-size:12px;">mL in matraccio da</span>
+              <select style="padding:4px 8px;font-size:12px;" onchange="updateElem(${i},${ei},'vDilFlask',parseInt(this.value));renderSamples();">
+                ${FLASKS.map(f=>`<option value="${f}"${(el.vDilFlask??rec.vDilFlask)===f?' selected':''}>${f} mL</option>`).join('')}
+              </select>
+            </div>
+          </div>`;
+        }
+      } else if(el.pct!=null && s.weight===0){
+        sugg=`<div style="color:var(--muted);font-size:12px;margin-top:4px;">Inserisci il peso del campione per il calcolo.</div>`;
+      }
     }
+
+    const pctLabel=isSol?'C teorica (ppm)':'% teorica';
+    const pctMax=isSol?'':'max="100"';
+    const pctPlaceholder=isSol?'es. 10.0':'es. 2.500';
 
     elemHtml+=`<div style="background:#f8fafc;border:1px solid var(--bdr);border-radius:8px;padding:12px;margin-bottom:10px;">
       <div style="display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;">
         <div class="fg"><label>Elemento</label>
           <select style="width:100px;" onchange="updateElem(${i},${ei},'name',this.value)">${elemOptions(el.name)}</select>
         </div>
-        <div class="fg"><label>% teorica</label>
-          <input type="number" value="${el.pct??''}" style="width:100px;" min="0" max="100" step="0.001" placeholder="es. 2.500"
+        <div class="fg"><label>${pctLabel}</label>
+          <input type="number" value="${el.pct??''}" style="width:110px;" min="0" ${pctMax} step="0.001" placeholder="${pctPlaceholder}"
             onchange="updateElem(${i},${ei},'pct',this.value===''?null:parseFloat(this.value))">
         </div>
         <button class="btn btn-sm btn-d btn-ic" style="align-self:flex-end;" onclick="removeElem(${i},${ei})">
@@ -787,14 +826,22 @@ function renderSampleBlock(s,i,container){
     </div>`;
   });
 
-  const wLabel=s.weight>0?`${s.weight} g`:'— g';
+  const typeLabel=isSol?'In soluzione':'Polvere/Solido';
+  const typeBadgeStyle=isSol?'background:#e0f2fe;color:#075985;':'background:#f0fdf4;color:#166534;';
+  const metaLine=isSol
+    ?(s.volSol>0?`${s.volSol} mL`:'— mL')
+    :(s.weight>0?`${s.weight} g`:'— g');
   const eNames=s.elements.map(e=>e.name).filter(Boolean).join(', ')||'—';
+
   div.innerHTML=`
     <div class="sbh" onclick="toggleSB(${i})">
       <div class="slt">${letter}</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.name||'Campione '+letter)}</div>
-        <div style="font-size:11px;color:var(--smut);">${wLabel} · ${s.elements.length} elem. (${esc(eNames)})</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.name||'Campione '+letter)}</span>
+          <span style="font-size:10px;padding:1px 7px;border-radius:10px;font-weight:600;flex-shrink:0;${typeBadgeStyle}">${typeLabel}</span>
+        </div>
+        <div style="font-size:11px;color:var(--smut);">${metaLine} · ${s.elements.length} elem. (${esc(eNames)})</div>
       </div>
       <button class="btn btn-sm btn-d" style="flex-shrink:0;" onclick="event.stopPropagation();removeSample(${i})">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -802,15 +849,32 @@ function renderSampleBlock(s,i,container){
       </button>
     </div>
     <div class="sbb" id="sbb-${i}">
+      <!-- Tipo toggle -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button onclick="updateSample(${i},'type','solid')" style="flex:1;padding:9px;border-radius:6px;border:2px solid ${!isSol?'var(--acc)':'var(--bdr)'};background:${!isSol?'#eff6ff':'#fff'};color:${!isSol?'var(--acc)':'var(--muted)'};font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;">
+          🧪 Polvere / Solido
+        </button>
+        <button onclick="updateSample(${i},'type','solution')" style="flex:1;padding:9px;border-radius:6px;border:2px solid ${isSol?'var(--acc)':'var(--bdr)'};background:${isSol?'#eff6ff':'#fff'};color:${isSol?'var(--acc)':'var(--muted)'};font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;">
+          💧 Già in soluzione
+        </button>
+      </div>
+      <!-- Fields -->
       <div class="fr" style="margin-bottom:16px;">
         <div class="fg f1"><label>Nome campione</label>
           <input type="text" value="${esc(s.name)}" placeholder="Campione ${letter}" onchange="updateSample(${i},'name',this.value)">
         </div>
-        <div class="fg"><label>Peso campione (g)</label>
-          <input type="number" value="${s.weight||''}" min="0" step="0.0001" placeholder="0.0000"
-            onchange="updateSample(${i},'weight',parseFloat(this.value)||0)">
-        </div>
+        ${!isSol
+          ? `<div class="fg"><label>Peso campione (g)</label>
+              <input type="number" value="${s.weight||''}" min="0" step="0.0001" placeholder="0.0000"
+                onchange="updateSample(${i},'weight',parseFloat(this.value)||0)">
+            </div>`
+          : `<div class="fg"><label>Volume soluzione (mL)</label>
+              <input type="number" value="${s.volSol||''}" min="0" step="0.1" placeholder="es. 100"
+                onchange="updateSample(${i},'volSol',parseFloat(this.value)||0)">
+            </div>`
+        }
       </div>
+      <!-- Elements -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
         <label style="margin:0;">Elementi</label>
         <button class="btn btn-sm btn-p" onclick="addElem(${i})">
@@ -818,7 +882,7 @@ function renderSampleBlock(s,i,container){
           Aggiungi elemento
         </button>
       </div>
-      <div id="el-list-${i}">${s.elements.length===0?'<div style="color:var(--muted);font-size:13px;padding:4px 0;">Nessun elemento. Clicca "Aggiungi elemento".</div>':elemHtml}</div>
+      <div id="el-list-${i}">${s.elements.length===0?'<div style="color:var(--muted);font-size:13px;padding:4px 0;">Nessun elemento.</div>':elemHtml}</div>
     </div>`;
   container.appendChild(div);
 }
@@ -826,7 +890,7 @@ function renderSampleBlock(s,i,container){
 function toggleSB(i){ const b=document.getElementById(`sbb-${i}`); b.style.display=b.style.display==='none'?'':'none'; }
 function addSample(){
   if(!currentSession) return;
-  currentSession.data.samples.push({name:'',weight:0,elements:[]});
+  currentSession.data.samples.push({name:'',type:'solid',weight:0,volSol:0,elements:[]});
   renderSamples(); autosave();
   setTimeout(()=>{ const el=document.getElementById(`sb-${currentSession.data.samples.length-1}`); if(el) el.scrollIntoView({behavior:'smooth',block:'nearest'}); },50);
 }
@@ -876,29 +940,42 @@ function calcResults(){
   const icpMin=d.icpMin||1; const icpMax=d.icpMax||5;
   return d.samples.map((s,si)=>{
     const letter=LETTERS[si]||(si+1).toString();
+    const isSol=(s.type==='solution');
     const elems=s.elements.map(el=>{
-      const rec=(el.pct!=null&&s.weight>0)?recommendPrep(el.pct,s.weight,icpMin,icpMax):null;
-      let wtPct=null;
-      if(el.reading!=null && rec && s.weight>0){
-        if(!rec.needsDil){
-          // wt% = (reading_ppm * V_flask_mL) / (weight_g * 1000) * 100
-          wtPct=(el.reading*rec.vFinale)/(s.weight*1000)*100;
-        } else {
-          // dilution: C_madre = reading * vDilFlask / vAliqDil
-          // wt% = (C_madre * vFinale) / (weight * 1000) * 100
-          const vAliq=el.vAliqDil??rec.vAliqDil;
-          const vDil=el.vDilFlask??rec.vDilFlask;
-          const cMadre=el.reading*vDil/vAliq;
-          wtPct=(cMadre*rec.vFinale)/(s.weight*1000)*100;
+      let wtPct=null, cRilevata=null, rec=null;
+      if(isSol){
+        // Solution: back-calc real concentration
+        rec=(el.pct!=null)?recommendPrepSolution(el.pct,icpMax):null;
+        if(el.reading!=null){
+          if(!rec||!rec.needsDil){
+            cRilevata=el.reading; // measured directly
+          } else {
+            const vAliq=el.vAliqDil??rec.vAliq;
+            const vFin=el.vDilFlask??rec.vFinale;
+            cRilevata=el.reading*vFin/vAliq; // back to original conc
+          }
+        }
+      } else {
+        // Solid: back-calc wt%
+        rec=(el.pct!=null&&s.weight>0)?recommendPrep(el.pct,s.weight,icpMin,icpMax):null;
+        if(el.reading!=null && rec && s.weight>0){
+          if(!rec.needsDil){
+            wtPct=(el.reading*rec.vFinale)/(s.weight*1000)*100;
+          } else {
+            const vAliq=el.vAliqDil??rec.vAliqDil;
+            const vDil=el.vDilFlask??rec.vDilFlask;
+            const cMadre=el.reading*vDil/vAliq;
+            wtPct=(cMadre*rec.vFinale)/(s.weight*1000)*100;
+          }
         }
       }
       return {
-        name:el.name, reading:el.reading, wtPct,
-        theoretical:el.pct, rec,
+        name:el.name, reading:el.reading, wtPct, cRilevata,
+        theoretical:el.pct, isSol, rec,
         vAliqDil:el.vAliqDil, vDilFlask:el.vDilFlask
       };
     });
-    return {letter, name:s.name||'Campione '+letter, weight:s.weight, elements:elems};
+    return {letter, name:s.name||'Campione '+letter, weight:s.weight, volSol:s.volSol, isSol, elements:elems};
   });
 }
 
@@ -908,16 +985,33 @@ function renderResults(){
   const el=document.getElementById('results-content');
   if(!res.length||!res.some(s=>s.elements.length)){ el.innerHTML='<div class="al al-i"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Nessun campione con dati.</div>'; return; }
   let html='<div class="tw"><table><thead><tr>';
-  html+=`<th>${t('sample')}</th><th>${t('element')}</th><th>${t('reading')}</th><th>${t('flask')}</th><th style="font-size:13px;font-weight:700;color:var(--acc);">${t('wt_pct')}</th></tr></thead><tbody>`;
+  html+=`<th>${t('sample')}</th><th>Tipo</th><th>${t('element')}</th><th>${t('reading')}</th><th>${t('flask')}</th><th style="font-size:13px;font-weight:700;color:var(--acc);">Risultato</th></tr></thead><tbody>`;
   res.forEach(s=>{
     s.elements.forEach((el,ei)=>{
       html+='<tr>';
-      if(ei===0) html+=`<td rowspan="${s.elements.length}" style="font-weight:600;vertical-align:top;padding-top:12px;"><div style="display:flex;align-items:center;gap:6px;"><span class="slt" style="width:22px;height:22px;font-size:10px;">${s.letter}</span>${esc(s.name)}</div></td>`;
+      if(ei===0){
+        const tBadge=s.isSol
+          ?'<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:#e0f2fe;color:#075985;font-weight:600;">Soluzione</span>'
+          :'<span style="font-size:10px;padding:1px 6px;border-radius:8px;background:#f0fdf4;color:#166534;font-weight:600;">Solido</span>';
+        html+=`<td rowspan="${s.elements.length}" style="font-weight:600;vertical-align:top;padding-top:12px;"><div style="display:flex;align-items:center;gap:6px;"><span class="slt" style="width:22px;height:22px;font-size:10px;">${s.letter}</span>${esc(s.name)}</div></td>`;
+        html+=`<td rowspan="${s.elements.length}" style="vertical-align:top;padding-top:14px;">${tBadge}</td>`;
+      }
       html+=`<td><b>${esc(el.name||'—')}</b></td>`;
       html+=`<td class="mono">${el.reading!=null?el.reading.toFixed(4)+' ppm':'—'}</td>`;
-      const flaskDisp=el.rec?(el.rec.needsDil?`1000→${el.vDilFlask??el.rec.vDilFlask} mL`:`${el.rec.vFinale} mL`):'—';
+      let flaskDisp='—';
+      if(el.isSol){
+        if(el.rec&&el.rec.needsDil) flaskDisp=`${el.vAliqDil??el.rec.vAliq}→${el.vDilFlask??el.rec.vFinale} mL`;
+        else if(el.rec) flaskDisp='diretta';
+      } else {
+        if(el.rec) flaskDisp=el.rec.needsDil?`1000→${el.vDilFlask??el.rec.vDilFlask} mL`:`${el.rec.vFinale} mL`;
+      }
       html+=`<td class="mono">${flaskDisp}</td>`;
-      html+=`<td class="mono" style="font-size:14px;font-weight:700;color:var(--acc);">${el.wtPct!=null?el.wtPct.toFixed(4)+'%':'—'}</td>`;
+      // Result: wt% for solid, ppm for solution
+      let resultHtml='—';
+      if(el.isSol && el.wtPct!=null) resultHtml=`<span class="mono" style="font-size:14px;font-weight:700;color:var(--acc);">${el.wtPct.toFixed(4)} %</span>`;
+      else if(el.isSol) resultHtml='—';
+      else if(el.cRilevata!=null) resultHtml=`<span class="mono" style="font-size:14px;font-weight:700;color:#075985;">${el.cRilevata.toFixed(4)} ppm</span>`;
+      html+=`<td>${resultHtml}</td>`;
       html+='</tr>';
     });
   });
