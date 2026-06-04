@@ -492,7 +492,18 @@ function renderSessionList(){
     const div=document.createElement('div');
     div.className='si'+(isAct?' active':'');
     div.onclick=()=>openSession(s.id);
-    div.innerHTML=`<div class="si-name">${esc(s.name)}</div><div class="si-meta"><span class="si-date">${d}</span><span class="badge ${s.status==='open'?'bo':'bc'}">${s.status==='open'?'aperta':'chiusa'}</span>${n>0?`<span class="badge bn">${n} camp.</span>`:''}</div>`;
+    div.innerHTML=`
+      <div style="display:flex;align-items:flex-start;gap:4px;">
+        <div style="flex:1;min-width:0;">
+          <div class="si-name">${esc(s.name)}</div>
+          <div class="si-meta"><span class="si-date">${d}</span><span class="badge ${s.status==='open'?'bo':'bc'}">${s.status==='open'?'aperta':'chiusa'}</span>${n>0?`<span class="badge bn">${n} camp.</span>`:''}</div>
+        </div>
+        <button onclick="event.stopPropagation();confirmDeleteSession('${s.id}')" title="Elimina sessione"
+          style="background:none;border:none;cursor:pointer;color:#4b5563;padding:2px 4px;border-radius:4px;flex-shrink:0;line-height:1;transition:color .15s;"
+          onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#4b5563'">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+        </button>
+      </div>`;
     list.appendChild(div);
   });
 }
@@ -578,6 +589,24 @@ function importSession(ev){
   }; r.readAsText(file); ev.target.value='';
 }
 
+function confirmDeleteSession(id){
+  const s=sessions.find(x=>x.id===id); if(!s) return;
+  showModal(
+    'Elimina sessione',
+    `Eliminare definitivamente "${s.name}"? L'operazione non è reversibile.`,
+    '',
+    [
+      {label:'Annulla',cls:'btn',action:closeModal},
+      {label:'Elimina',cls:'btn btn-d',action:()=>{
+        sessions=sessions.filter(x=>x.id!==id);
+        saveSessions();
+        if(currentSession&&currentSession.id===id) closeEditor();
+        else renderSessionList();
+        closeModal();
+      }}
+    ]
+  );
+}
 function confirmCloseSession(){
   autosave();
   showModal('Chiudi sessione','La sessione verrà contrassegnata come chiusa. Potrai riaprirla dalla sidebar.','',[
