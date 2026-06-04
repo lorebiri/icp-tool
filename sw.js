@@ -1,6 +1,6 @@
 // ICP Tool — Service Worker
 // Cache version: bump this string to force cache refresh
-const CACHE_NAME = 'icp-tool-v3';
+const CACHE_NAME = 'icp-tool-v4';
 
 // Files to cache on install
 const PRECACHE = [
