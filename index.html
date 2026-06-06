@@ -70,6 +70,24 @@ html,body{height:100%;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
 #welcome h1{font-size:24px;font-weight:700;margin-bottom:8px}
 #welcome p{color:var(--muted);max-width:420px;line-height:1.6;margin-bottom:32px}
 .wc{margin-top:48px;color:var(--muted);font-size:12px}
+/* standard archive */
+#std-archive{padding:28px 32px;max-width:980px}
+#std-archive .sa-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:6px}
+#std-archive h2{font-size:20px;font-weight:700;margin-bottom:4px}
+#std-archive .sa-sub{color:var(--muted);font-size:13px;max-width:520px;line-height:1.5}
+#sa-search-wrap{margin:18px 0 14px}
+#sa-search-wrap input{width:100%;max-width:300px}
+.sa-card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:14px 16px;margin-bottom:10px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;box-shadow:var(--sh)}
+.sa-card-main{flex:1;min-width:0}
+.sa-card-title{font-weight:600;font-size:14px;color:var(--txt);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sa-card-meta{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--muted);align-items:center}
+.sa-levels{margin-top:8px;font-size:12px;color:var(--txt);line-height:1.6}
+.sa-levels b{color:var(--acc)}
+.sa-note{margin-top:6px;font-size:11.5px;color:var(--muted);font-style:italic}
+.sa-del{background:none;border:none;cursor:pointer;color:#9ca3af;padding:4px;border-radius:6px;flex-shrink:0;transition:color .15s}
+.sa-del:hover{color:#ef4444}
+.sa-empty{text-align:center;color:var(--muted);padding:60px 12px;font-size:13px}
+.bm{background:#fef3c7;color:#92400e}.ba{background:#dbeafe;color:#1e40af}
 /* cards */
 .card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:24px;margin-bottom:20px;box-shadow:var(--sh)}
 .ch{display:flex;align-items:center;gap:10px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--bdr)}
@@ -166,7 +184,11 @@ tr:hover td{background:#f8fafc}
     </div>
     <div id="sessions-list"></div>
     <div id="sidebar-footer">
-      <label style="display:block;padding:0 8px 8px;font-size:10px;font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:.4px;">Archivio</label>
+      <button class="sfb" id="btn-std-archive" onclick="openStdArchive()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2v6L4 19a2 2 0 002 3h12a2 2 0 002-3l-5-11V2"/><line x1="9" y1="2" x2="15" y2="2"/><line x1="6" y1="14" x2="18" y2="14"/></svg>
+        Archivio standard
+      </button>
+      <label style="display:block;padding:8px 8px 8px;font-size:10px;font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:.4px;">Sessioni</label>
       <button class="sfb" onclick="triggerImport()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Importa sessione JSON
@@ -212,6 +234,24 @@ tr:hover td{background:#f8fafc}
           Nuova sessione
         </button>
         <div class="wc">Sviluppato da Lorenzo Birindelli · CNR-ICCOM Pisa</div>
+      </div>
+
+      <!-- standard archive -->
+      <div id="std-archive" class="hid">
+        <div class="sa-head">
+          <div>
+            <h2 id="sa-title">Archivio standard</h2>
+            <p class="sa-sub" id="sa-subtitle">Standard di calibrazione già preparati e disponibili in laboratorio. Vengono aggiunti automaticamente quando generi il PDF di preparazione standard, oppure puoi registrarne uno manualmente.</p>
+          </div>
+          <button class="btn btn-p" onclick="openAddStdModal()" id="sa-add-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Aggiungi standard
+          </button>
+        </div>
+        <div id="sa-search-wrap">
+          <input type="text" id="sa-search" placeholder="Filtra per elemento..." oninput="renderStdArchive()">
+        </div>
+        <div id="sa-list"></div>
       </div>
 
       <!-- editor -->
@@ -551,6 +591,7 @@ function openSession(id){
 
 function showEditor(){
   document.getElementById('welcome').classList.add('hid');
+  document.getElementById('std-archive').classList.add('hid');
   document.getElementById('session-editor').classList.remove('hid');
   document.getElementById('tb-actions').style.display='flex';
   document.getElementById('tb-title').innerHTML=esc(currentSession.name)+'<span>· '+(currentSession.status==='open'?'aperta':'chiusa')+'</span>';
@@ -559,10 +600,178 @@ function showEditor(){
 function closeEditor(){
   currentSession=null;
   document.getElementById('welcome').classList.remove('hid');
+  document.getElementById('std-archive').classList.add('hid');
   document.getElementById('session-editor').classList.add('hid');
   document.getElementById('tb-actions').style.display='none';
   document.getElementById('tb-title').textContent='ICP Tool — CNR-ICCOM Pisa';
   renderSessionList(); goToStep(1);
+}
+
+// ── Standard archive (global, cross-session DB of prepared standards) ────────
+const STD_ARCHIVE_KEY='icp_std_archive';
+let stdArchive=[];
+function loadStdArchive(){ try{ stdArchive=JSON.parse(localStorage.getItem(STD_ARCHIVE_KEY))||[]; }catch(e){ stdArchive=[]; } }
+function saveStdArchive(){ localStorage.setItem(STD_ARCHIVE_KEY, JSON.stringify(stdArchive)); }
+
+function openStdArchive(){
+  currentSession=null;
+  document.getElementById('welcome').classList.add('hid');
+  document.getElementById('session-editor').classList.add('hid');
+  document.getElementById('std-archive').classList.remove('hid');
+  document.getElementById('tb-actions').style.display='none';
+  document.getElementById('tb-title').textContent='Archivio standard — ICP Tool';
+  renderSessionList();
+  document.getElementById('sa-search').value='';
+  renderStdArchive();
+}
+
+function fmtStdDate(ts){
+  return new Date(ts).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+
+function stdArchiveSummary(entry){
+  const names=(entry.elements||[]).map(e=>e.name).filter(Boolean);
+  return names.length?names.join(', '):'—';
+}
+
+function renderStdArchive(){
+  const wrap=document.getElementById('sa-list');
+  const q=(document.getElementById('sa-search').value||'').trim().toLowerCase();
+  let list=[...stdArchive].sort((a,b)=>(b.date||0)-(a.date||0));
+  if(q){
+    list=list.filter(e=>(e.elements||[]).some(el=>(el.name||'').toLowerCase().includes(q)));
+  }
+  if(list.length===0){
+    wrap.innerHTML=`<div class="sa-empty">${stdArchive.length===0
+      ?'Nessuno standard in archivio.<br>Generane uno dal Passo 2 di una sessione, oppure aggiungilo manualmente.'
+      :'Nessuno standard corrisponde al filtro.'}</div>`;
+    return;
+  }
+  wrap.innerHTML='';
+  list.forEach(entry=>{
+    const typeLbl=entry.type==='mono'?'Monoelementale':'Multielementale';
+    const srcBadge=entry.source==='auto'
+      ?`<span class="badge ba">da sessione${entry.session?': '+esc(entry.session):''}</span>`
+      :`<span class="badge bm">manuale</span>`;
+    const levelsTxt=(entry.levels||[]).map(l=>`<b>${l}</b> ppm`).join(' · ')||'—';
+    const div=document.createElement('div');
+    div.className='sa-card';
+    div.innerHTML=`
+      <div class="sa-card-main">
+        <div class="sa-card-title">${esc(stdArchiveSummary(entry))} <span class="badge bn">${typeLbl}</span> ${srcBadge}</div>
+        <div class="sa-card-meta">
+          <span>📅 ${fmtStdDate(entry.date)}</span>
+          <span>·</span>
+          <span>Vol. finale: ${entry.volume||50} mL</span>
+        </div>
+        <div class="sa-levels">Livelli: ${levelsTxt}</div>
+        ${entry.notes?`<div class="sa-note">${esc(entry.notes)}</div>`:''}
+      </div>
+      <button class="sa-del" title="Elimina dall'archivio" onclick="confirmDeleteStdArchive('${entry.id}')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+      </button>`;
+    wrap.appendChild(div);
+  });
+}
+
+function confirmDeleteStdArchive(id){
+  const entry=stdArchive.find(e=>e.id===id); if(!entry) return;
+  showModal('Eliminare standard dall\'archivio?',
+    `Stai per rimuovere "${stdArchiveSummary(entry)} — ${fmtStdDate(entry.date)}" dall'archivio. L'operazione non è reversibile.`, '',
+    [
+      {label:'Annulla', cls:'btn', action:closeModal},
+      {label:'Elimina', cls:'btn btn-d', action:()=>{ stdArchive=stdArchive.filter(e=>e.id!==id); saveStdArchive(); renderStdArchive(); closeModal(); }}
+    ]);
+}
+
+let _saFormElems=[{name:'',stock:1000}];
+function openAddStdModal(){
+  _saFormElems=[{name:'',stock:1000}];
+  const today=new Date().toISOString().slice(0,10);
+  showModal('Aggiungi standard all\'archivio','Registra uno standard di calibrazione già pronto e disponibile in laboratorio.',
+    `<div class="fg" style="margin-bottom:10px;">
+      <label>Data preparazione</label>
+      <input type="date" id="sa-f-date" value="${today}" style="width:100%;margin-top:4px;">
+    </div>
+    <div class="fg" style="margin-bottom:10px;">
+      <label>Tipo</label>
+      <select id="sa-f-type" style="width:100%;margin-top:4px;" onchange="renderSaFormElems()">
+        <option value="multi">Multielementale</option>
+        <option value="mono">Monoelementale</option>
+      </select>
+    </div>
+    <div class="fg" style="margin-bottom:6px;">
+      <label>Elementi (nome e stock in ppm)</label>
+      <div id="sa-f-elems" style="margin-top:4px;display:flex;flex-direction:column;gap:6px;"></div>
+      <button type="button" class="btn" id="sa-f-addelem" style="margin-top:6px;align-self:flex-start;font-size:12px;padding:5px 10px;" onclick="addSaFormElem()">+ Aggiungi elemento</button>
+    </div>
+    <div class="fg" style="margin-bottom:10px;">
+      <label>Livelli di concentrazione (ppm, separati da virgola)</label>
+      <input type="text" id="sa-f-levels" placeholder="Es: 0.5, 1, 2, 5" style="width:100%;margin-top:4px;">
+    </div>
+    <div class="fg" style="margin-bottom:0;">
+      <label>Note (opzionale)</label>
+      <input type="text" id="sa-f-notes" placeholder="Es: conservato in frigo, lotto XY..." style="width:100%;margin-top:4px;">
+    </div>`,
+    [
+      {label:'Annulla', cls:'btn', action:closeModal},
+      {label:'Salva', cls:'btn btn-p', action:saveManualStdArchive}
+    ]);
+  renderSaFormElems();
+}
+
+function renderSaFormElems(){
+  const typeSel=document.getElementById('sa-f-type');
+  const isMono=typeSel && typeSel.value==='mono';
+  if(isMono && _saFormElems.length>1) _saFormElems=_saFormElems.slice(0,1);
+  const wrap=document.getElementById('sa-f-elems');
+  if(!wrap) return;
+  wrap.innerHTML='';
+  _saFormElems.forEach((el,i)=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;gap:6px;align-items:center;';
+    row.innerHTML=`
+      <input type="text" placeholder="Elemento (es. Fe)" value="${esc(el.name)}" style="flex:1;min-width:0;" oninput="_saFormElems[${i}].name=this.value">
+      <input type="number" placeholder="Stock (ppm)" value="${el.stock}" style="width:120px;" oninput="_saFormElems[${i}].stock=parseFloat(this.value)||0">
+      ${_saFormElems.length>1?`<button type="button" class="sa-del" style="padding:4px;" onclick="_saFormElems.splice(${i},1);renderSaFormElems()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`:''}
+    `;
+    wrap.appendChild(row);
+  });
+  const addBtn=document.getElementById('sa-f-addelem');
+  if(addBtn) addBtn.style.display=isMono?'none':'inline-flex';
+}
+
+function addSaFormElem(){ _saFormElems.push({name:'',stock:1000}); renderSaFormElems(); }
+
+function saveManualStdArchive(){
+  const dateStr=document.getElementById('sa-f-date').value;
+  const type=document.getElementById('sa-f-type').value;
+  const levelsRaw=document.getElementById('sa-f-levels').value;
+  const notes=document.getElementById('sa-f-notes').value.trim();
+  const elements=_saFormElems.filter(e=>e.name && e.name.trim()).map(e=>({name:e.name.trim(),stock:e.stock||1000}));
+  const levels=levelsRaw.split(',').map(s=>parseFloat(s.trim())).filter(n=>!isNaN(n));
+  if(elements.length===0){ alert('Inserisci almeno un elemento.'); return; }
+  if(levels.length===0){ alert('Inserisci almeno un livello di concentrazione.'); return; }
+  const ts=dateStr?new Date(dateStr+'T12:00:00').getTime():Date.now();
+  stdArchive.push({
+    id:'std_'+Date.now()+'_'+Math.floor(Math.random()*1000),
+    date:ts, type, elements, levels, volume:50,
+    source:'manual', session:null, notes
+  });
+  saveStdArchive(); closeModal(); renderStdArchive();
+}
+
+function archiveStandardFromSession(d, sessionName){
+  if(!d || !d.stdEnabled) return;
+  const elements=(d.stdElements||[]).filter(e=>e.name).map(e=>({name:e.name,stock:e.stock}));
+  const levels=(d.stdLevels||[]).filter(l=>l!=null && !isNaN(l));
+  if(elements.length===0 || levels.length===0) return;
+  stdArchive.push({
+    id:'std_'+Date.now()+'_'+Math.floor(Math.random()*1000),
+    date:Date.now(), type:d.stdType||'multi', elements, levels, volume:50,
+    source:'auto', session:sessionName||null, notes:''
+  });
+  saveStdArchive();
 }
 
 function loadUI(){
@@ -1316,6 +1525,8 @@ function generatePDF(type, lang){
       if(!elems.length||!levels.length){
         doc.setFontSize(10); doc.text(isIt?'Nessun elemento o livello configurato.':'No elements or levels configured.', 14, y);
       } else {
+        // Save this standard configuration into the global archive (cross-session DB)
+        archiveStandardFromSession(d, s.name);
         // Info row
         doc.setFontSize(8); doc.setTextColor(80,80,80);
         doc.text(`${isIt?'Tipo':'Type'}: ${d.stdType==='mono'?isIt?'Monoelementale':'Single-element':isIt?'Multielementale':'Multi-element'} | ${isIt?'Vol. finale fisso':'Fixed final vol.'}: 50 mL`, 14, y); y+=8;
@@ -1361,6 +1572,148 @@ function generatePDF(type, lang){
           '5. Prepare immediately before analysis to avoid contamination.',
         ];
         steps.forEach(st=>{ doc.text(st,16,y); y+=5; });
+
+        // ── Labels for standard Falcon tubes (rectangular: body | round: cap) ─
+        const sessionDateStd = new Date(s.createdAt||Date.now());
+        const dateStrStd = sessionDateStd.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});
+        const monoName = (d.stdType==='mono' && elems[0] && elems[0].name) ? elems[0].name : null;
+        const stdElemList = elems.map(e=>e.name).filter(Boolean).join(', ')||'—';
+
+        function labelStd(idx){ return `Std${idx+1}`; }
+
+        // -- Rectangular labels (45x25mm) for the tube body --------------------
+        const RLW=45, RLH=25, RCOLS=4, RgapX=3, RgapY=3;
+        const nRect=levels.length;
+        const nRectRows=Math.ceil(nRect/RCOLS);
+        const blockHRect=nRectRows*(RLH+RgapY)+14;
+
+        y+=4;
+        if(y + blockHRect > 282){ doc.addPage(); y=16; }
+
+        doc.setDrawColor(26,56,112); doc.setLineWidth(0.5);
+        doc.line(14, y, 196, y);
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(26,56,112);
+        doc.text(isIt?`Etichette provetta (45×25 mm — corpo Falcon 50 mL)`:`Tube labels (45×25 mm — 50 mL Falcon body)`, 14, y+5);
+        doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,120,120);
+        doc.text(isIt?'Ritagliare lungo il tratteggio e incollare sul corpo della provetta':'Cut along the dashed line and stick on the tube body', 196, y+5, {align:'right'});
+        doc.setTextColor(0,0,0);
+
+        const rectGridStartY = y+9;
+        const rectGridStartX = 14;
+
+        function drawStdRectLabel(level, idx, gx, gy){
+          // Dashed cut border
+          doc.setDrawColor(160,160,160); doc.setLineWidth(0.25);
+          doc.setLineDash([1.2,1.2],0);
+          doc.rect(gx,gy,RLW,RLH,'S');
+          doc.setLineDash([],0);
+          // Inner solid border
+          doc.setDrawColor(26,56,112); doc.setLineWidth(0.3);
+          doc.roundedRect(gx+0.8,gy+0.8,RLW-1.6,RLH-1.6,1,1,'S');
+          // Blue top band
+          doc.setFillColor(26,56,112);
+          doc.rect(gx+0.8,gy+0.8,RLW-1.6,5.5,'F');
+          // Level white on blue + concentration
+          doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
+          doc.text(labelStd(idx), gx+2.5, gy+4.8);
+          doc.setFontSize(7);
+          doc.text(`${level} ppm`, gx+RLW-2.5, gy+4.8, {align:'right'});
+          doc.setTextColor(30,30,30);
+          // Date + lab
+          doc.setFont('helvetica','normal'); doc.setFontSize(5);
+          doc.text(dateStrStd, gx+2.5, gy+8.8);
+          doc.setFont('helvetica','bold'); doc.setFontSize(5);
+          doc.text('CNR-ICCOM', gx+RLW-2.5, gy+8.8, {align:'right'});
+          // Type / session
+          doc.setFont('helvetica','bold'); doc.setFontSize(6);
+          doc.setTextColor(10,10,10);
+          const ttl=doc.splitTextToSize(`${isIt?'Standard':'Standard'} — ${d.stdType==='mono'?(isIt?'monoel.':'single-el.'):(isIt?'multiel.':'multi-el.')}`, RLW-4);
+          doc.text(ttl[0], gx+2.5, gy+13);
+          // Elements
+          doc.setFont('helvetica','normal'); doc.setFontSize(5);
+          doc.setTextColor(80,80,80);
+          doc.text(isIt?'Elem.:':'Elem.:', gx+2.5, gy+17);
+          doc.setFont('helvetica','bold'); doc.setFontSize(5.5);
+          doc.setTextColor(26,56,112);
+          const el2=doc.splitTextToSize(stdElemList, RLW-4);
+          doc.text(el2[0], gx+2.5, gy+21);
+          // Final volume bottom right
+          doc.setFont('helvetica','normal'); doc.setFontSize(5);
+          doc.setTextColor(140,140,140);
+          doc.text('50 mL', gx+RLW-2.5, gy+23, {align:'right'});
+          doc.setTextColor(0,0,0);
+        }
+
+        levels.forEach((lvl,li)=>{
+          const col=li%RCOLS;
+          const row=Math.floor(li/RCOLS);
+          const gx=rectGridStartX+col*(RLW+RgapX);
+          const gy=rectGridStartY+row*(RLH+RgapY);
+          drawStdRectLabel(lvl, li, gx, gy);
+        });
+
+        y = rectGridStartY + nRectRows*(RLH+RgapY) + 6;
+
+        // -- Round labels (Ø28mm) for the cap -----------------------------------
+        const DIA=28, COLS_R=5, gapXR=4, gapYR=4;
+        const nLab=levels.length;
+        const nRowsR=Math.ceil(nLab/COLS_R);
+        const blockHR=nRowsR*(DIA+gapYR)+14;
+
+        if(y + blockHR > 282){ doc.addPage(); y=16; }
+
+        doc.setDrawColor(26,56,112); doc.setLineWidth(0.5);
+        doc.line(14, y, 196, y);
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(26,56,112);
+        doc.text(isIt?`Etichette tappo (Ø ${DIA} mm — tappo Falcon 50 mL)`:`Cap labels (Ø ${DIA} mm — 50 mL Falcon cap)`, 14, y+5);
+        doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(120,120,120);
+        doc.text(isIt?'Ritagliare lungo il bordo tratteggiato e incollare sul tappo':'Cut along the dashed edge and stick on the cap', 196, y+5, {align:'right'});
+        doc.setTextColor(0,0,0);
+
+        const gridStartYR=y+9+DIA/2;
+        const gridStartXR=14+DIA/2;
+
+        function drawRoundLabel(level, idx, cx, cy){
+          const r=DIA/2;
+          // Dashed cut circle
+          doc.setDrawColor(160,160,160); doc.setLineWidth(0.25);
+          doc.setLineDash([1.2,1.2],0);
+          doc.circle(cx,cy,r,'S');
+          doc.setLineDash([],0);
+          // Inner solid circle
+          doc.setDrawColor(26,56,112); doc.setLineWidth(0.35);
+          doc.circle(cx,cy,r-1.4,'S');
+
+          // Level name
+          doc.setTextColor(26,56,112); doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
+          doc.text(labelStd(idx), cx, cy-r+8.5, {align:'center'});
+          // Concentration (target C)
+          doc.setTextColor(10,10,10); doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
+          doc.text(`${level} ppm`, cx, cy+0.5, {align:'center'});
+          // Element (mono only)
+          if(monoName){
+            doc.setFont('helvetica','normal'); doc.setFontSize(5.5);
+            doc.setTextColor(80,80,80);
+            doc.text(monoName, cx, cy+5, {align:'center'});
+          }
+          // Date
+          doc.setFont('helvetica','normal'); doc.setFontSize(4.8);
+          doc.setTextColor(120,120,120);
+          doc.text(dateStrStd, cx, cy+r-6.5, {align:'center'});
+          // Lab
+          doc.setFont('helvetica','bold'); doc.setFontSize(4.5);
+          doc.setTextColor(150,150,150);
+          doc.text('CNR-ICCOM', cx, cy+r-3, {align:'center'});
+          doc.setTextColor(0,0,0);
+        }
+
+        levels.forEach((lvl,li)=>{
+          const col=li%COLS_R;
+          const row=Math.floor(li/COLS_R);
+          const cx=gridStartXR+col*(DIA+gapXR);
+          const cy=gridStartYR+row*(DIA+gapYR);
+          drawRoundLabel(lvl, li, cx, cy);
+        });
       }
     }
     drawFooter();
@@ -1498,6 +1851,7 @@ function updateOperatorLabel(){
 
 document.addEventListener('DOMContentLoaded',()=>{
   loadSessions();
+  loadStdArchive();
   renderSessionList();
   updateOperatorLabel();
   // First-launch prompt if no operator set
